@@ -1,0 +1,266 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:qrscan/qrscan.dart'as scanner;
+import 'package:flushbar/flushbar.dart';
+
+
+
+class Attendance extends StatefulWidget {
+  @override
+  _AttendanceState createState() => _AttendanceState();
+}
+
+class _AttendanceState extends State<Attendance> {
+  // String FinalDate='';
+  // String FinalTime='';
+  // String _checkInTime='';
+
+
+  String result = '';
+  String _messageText;
+
+
+  bool pressAttention = false;
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text('Attendance'.toUpperCase(), style: TextStyle(fontSize: 25,)
+            ),
+            Icon(Icons.accessibility_new_sharp,size: 26,),
+          ],
+        ),
+      ),
+
+      body:Column(crossAxisAlignment: CrossAxisAlignment.start ,
+        children: <Widget>[
+          Text(
+            'The future belongs to those who prepare for it today. So Being on Time is very much important ',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+                fontSize: 18),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text('Dear Colleagues, \nOffice timing -9.30 to 6.30, With prior request Permission allowed to take 4 Hours in a month',
+              textAlign: TextAlign.left,
+              style: TextStyle(
+                  color: Colors.deepOrange,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 20),
+            ),
+          ),
+
+
+          Text('Please Note the Rules',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+                decoration: TextDecoration.underline,
+                decorationThickness: 1.8,
+                decorationColor: Colors.red,
+                color: Colors.blueAccent,
+                fontWeight: FontWeight.w500,
+                fontSize: 25),
+          ),
+
+
+          Padding(
+            padding: const EdgeInsets.all(2.0),
+            child: Text('1.Once entered in office immediately TAP "IN TIME" to scan with QR Bar to avoid Late Entry'
+                '\n 2.''Coming after 9.30 will be automatically taken as permission and late minutes or hours '
+                'will be reduced in 4hours permission'
+                '\n 3.After 4 hours finished further late or permission automatically will be taken as half day or full day leave, '
+                ' \n 4.During Leaving the office Tap "OUT TIME"\n 5.For a Direct Visit please Tap on Request and Submit the reason',
+                textAlign: TextAlign.start,style: TextStyle(fontSize: 21)),
+          ),
+          Container(
+            padding: const EdgeInsets.all(50.0),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: <Widget>[
+                // Center(
+                //   child: Text(""), // Here the scanned result will be shown
+                // ),
+                RaisedButton(child:Text('IN TIME'),onPressed: (){_in();}),
+                RaisedButton(child:Text('OUT TIME'),onPressed: (){_out();}),
+                RaisedButton(child:Text('REQUEST'),onPressed: (){_request();}),
+              ],
+            ),
+          ),
+          Container(
+            child: Row(mainAxisAlignment: MainAxisAlignment.center,
+              children:[RaisedButton(onPressed: () {_status();},
+                textColor: Colors.blue,
+                child: Text('Status'.toUpperCase()),),],
+
+
+            ),),
+        ],
+
+      ),
+    );
+  }
+  // officeTime(Duration inTime, startTime,permissionTime,differenceTime)
+  //
+  // {
+  //   if(inTime.isAfter(startTime){
+  //     differenceTime=permissionTime.substract(startTime);
+  //   }
+  // }
+  //
+  _checkIn(Duration _gracePeriod, _checkInTime, _startTime) {
+  Duration _difference;
+  if (_checkInTime.isAfter(_startTime)) {
+    _difference = _checkInTime.difference(_startTime);
+    _gracePeriod -= _difference;
+  }
+  return _gracePeriod;
+}
+
+
+  Future _in()async{
+    try {
+    int _graceHours, _graceMinutes;
+    String cameraScanResult = await scanner.scan();
+    DateTime _checkInTime=DateTime.now();
+    DateTime _shiftStartTime=DateTime(_checkInTime.year,_checkInTime.month,_checkInTime.day,9,30);
+//you must pull their grace time here and set the hours and minutes, for testing purposes I am simply
+//setting the values to 4 hours and 0 minutes
+    _graceHours = 4;
+    _graceMinutes = 0;
+    Duration _graceTime=new Duration(hours: _graceHours, minutes: _graceMinutes); //this is a class of type duration this is being passed an hours value and a minutes value
+    _graceTime =_checkIn(_graceTime, _checkInTime, _shiftStartTime); //this line passes _graceTime, _checkInTime, and _shift start time to the method _checkIn(), which subtracts the difference in time only if the user is late, then returns the value _grace time
+    Duration _difference = _checkInTime.difference(_shiftStartTime);
+    int _differenceHours, _differenceMinutes;
+    _differenceHours = _difference.inHours;
+    _differenceMinutes = _difference.inMinutes;
+    String _earlyOrLate;
+    if (_shiftStartTime.isBefore(_checkInTime)) {
+      _earlyOrLate = "late";
+    } else {
+      _earlyOrLate = "early";
+      _differenceHours = _differenceHours.abs();
+      _differenceMinutes = _differenceMinutes.abs();}
+
+    String _diffString = "You have checked in ${_differenceHours.toString()} hours and ${_differenceMinutes.toString()} minutes $_earlyOrLate. "
+        "Your remaining grace time is ${_graceHours.toString()} hours and ${_graceMinutes.toString()} minutes";
+    _graceHours = _graceTime.inHours; //this line takes the hours value from the Durations and converts it to an int
+    _graceMinutes = _graceTime.inMinutes.remainder(60); //this line takes the minutes value from the Durations and converts it to an int
+//here you can take the remaining grace time and push to where the values are stored
+    String _minute=_checkInTime.minute.toString(); //these 4 lines ensure that the minutes value has 2 characters
+    if (_minute.length<2) {
+      _minute='0'+_minute;}
+
+    // var _checkInTime = new DateTime.now().toString();
+    // var dateParse = DateTime.parse(_checkInTime);
+    // var formattedDate = "${dateParse.day}-${dateParse.month}-${dateParse.year}";
+    // var formattedTime = "${DateTime.now().hour} : ${DateTime.now().minute}";
+    setState(() {
+      // FinalDate = formattedDate.toString() ;
+      // FinalTime = formattedTime.toString();
+      this.result = cameraScanResult; // setting string result with cameraScanResult
+      _messageText = '${_checkInTime.hour}:$_minute on ${_checkInTime.day}/${_checkInTime.month}/${_checkInTime.year}'; //this line gives you a string to output to the user
+      _messageText += "\n + $_diffString";
+    });
+
+  } on PlatformException catch (e) {
+    print(e.message);
+  }
+
+    Flushbar(
+      title: 'Your IN Time',
+      messageText: Text(
+        _messageText,
+        style: TextStyle(
+            fontSize: 16.0,
+            color: Colors.green
+        ),
+      ),
+      // title: 'Your IN Time',
+      // messageText:  Text("$FinalDate.$FinalTime", style: TextStyle(fontSize: 16.0, color: Colors.green),),
+      // icon: Icon(
+      //   Icons.done_outline,
+      //   size: 28,
+      //   color: Colors.green.shade300,
+      // ),
+      // leftBarIndicatorColor: Colors.blue.shade300,
+      // duration: Duration(seconds: 3),
+
+    )..show(context);
+  }
+  Future _out()async{
+    try {
+      String cameraScanResult = await scanner.scan();
+      // var date = new DateTime.now().toString();
+      // var dateParse = DateTime.parse(date);
+      // var formattedDate = "${dateParse.day}-${dateParse.month}-${dateParse.year}";
+      // var formattedTime = "${DateTime.now().hour} : ${DateTime.now().minute}";
+      setState(() {
+        // FinalDate = formattedDate.toString() ;
+        // FinalTime = formattedTime.toString();
+        this.result = cameraScanResult; // setting string result with cameraScanResult
+      });
+    } on PlatformException catch (e) {
+      print(e.message);
+    }
+    Flushbar(
+      // title: 'Your OUT Time',
+      // messageText:  Text("$FinalDate.$FinalTime", style: TextStyle(fontSize: 16.0, color: Colors.green),),
+      // icon: Icon(
+      //   Icons.done_outline,
+      //   size: 28,
+      //   color: Colors.green.shade300,
+      // ),
+      // leftBarIndicatorColor: Colors.blue.shade300,
+      // duration: Duration(seconds: 3),
+    )..show(context);
+
+  }
+
+  _request(){setState(() => pressAttention = !pressAttention);
+
+  }
+  _status(){}
+
+// _checkIn(Duration _gracePeriod, _checkInTime,_shiftStartTime){
+//   Duration _difference;
+//   if(_checkInTime.isAfter(_shiftStartTime)){_difference=_checkInTime.difference(_shiftStartTime);_gracePeriod-=_difference;}
+//   return _gracePeriod;
+// }
+}
+
+// int _graveHours, _graceMinutes;
+// 1 _checkIn(Duration _gracePeriod) {
+//   DateTime _now = DateTime.now();
+//   DateTime _checkInTime = DateTime(_now.year, _now.month, _now.day, 9, 30);
+//   Duration _difference;
+//   if (_now.isAfter(_checkInTime)) {
+//     _difference = _now.difference(_checkInTime);
+//     _gracePeriod -= _difference;
+//   }
+//   return _gracePeriod;
+// }Duration _graceTime = new Duration(hours: 4);
+//           _graceTime = _checkIn(_graceTime);
+// 2 _checkIn(Duration _gracePeriod, _checkInTime, _startTime) {
+//   Duration _difference;
+//   if (_checkInTime.isAfter(_startTime)) {
+//     _difference = _checkInTime.difference(_startTime);
+//     _gracePeriod -= _difference;
+//   }
+//   return _gracePeriod;
+// }
+// 3 DateTime _checkInTime = DateTime.now();
+// DateTime _shiftStartTime = DateTime(_checkInTime.year, _checkInTime.month, _checkInTime.day, 9, 30);
+// Duration _graceTime = new Duration(hours: 4);
+// _graceTime = _checkIn(_graceTime, _checkInTime, _shiftStartTime);
+// String _minute = _checkInTime.minute.toString();
+// if (_minute.length < 2) {
+// _minute = '0' + _minute;
+// }
+// print('Checked in at: ${_checkInTime.hour}:${_checkInTime.minute} on ${_checkInTime.day}/${_checkInTime.month}/${_checkInTime.year}');
