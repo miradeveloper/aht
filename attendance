@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qrscan/qrscan.dart'as scanner;
@@ -14,12 +15,8 @@ class _AttendanceState extends State<Attendance> {
   // String FinalDate='';
   // String FinalTime='';
   // String _checkInTime='';
-
-
   String result = '';
   String _messageText;
-
-
   bool pressAttention = false;
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,14 +68,16 @@ class _AttendanceState extends State<Attendance> {
           ),
 
 
-          Padding(
-            padding: const EdgeInsets.all(2.0),
-            child: Text('1.Once entered in office immediately TAP "IN TIME" to scan with QR Bar to avoid Late Entry'
-                '\n 2.''Coming after 9.30 will be automatically taken as permission and late minutes or hours '
-                'will be reduced in 4hours permission'
-                '\n 3.After 4 hours finished further late or permission automatically will be taken as half day or full day leave, '
-                ' \n 4.During Leaving the office Tap "OUT TIME"\n 5.For a Direct Visit please Tap on Request and Submit the reason',
-                textAlign: TextAlign.start,style: TextStyle(fontSize: 21)),
+          Container(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text('1.Once entered in office immediately TAP "IN TIME" to scan with QR Bar to avoid Late Entry'
+                  '\n 2.''Coming after 9.30 will be automatically taken as permission and late minutes or hours '
+                  'will be reduced in 4hours permission'
+                  '\n 3.After 4 hours finished further late or permission automatically will be taken as half day or full day leave, '
+                  ' \n 4.During Leaving the office Tap "OUT TIME"\n 5.For a Direct Visit please Tap on Request and Submit the reason',
+                  textAlign: TextAlign.center,style: TextStyle(fontSize: 18)),
+            ),
           ),
           Container(
             padding: const EdgeInsets.all(50.0),
@@ -106,118 +105,129 @@ class _AttendanceState extends State<Attendance> {
       ),
     );
   }
-  // officeTime(Duration inTime, startTime,permissionTime,differenceTime)
-  //
-  // {
-  //   if(inTime.isAfter(startTime){
-  //     differenceTime=permissionTime.substract(startTime);
-  //   }
-  // }
-  //
-  _checkIn(Duration _gracePeriod, _checkInTime, _startTime) {
-  Duration _difference;
-  if (_checkInTime.isAfter(_startTime)) {
-    _difference = _checkInTime.difference(_startTime);
-    _gracePeriod -= _difference;
-  }
-  return _gracePeriod;
-}
 
-// office start time = 9:30 & permission hours = 4hours/month
+
+  // final or const permission Time per month =4Hours
+// office start time = 9:30
 //  office close time = 6:30
 //  display in screen  qr code scan before 9:30 good you came early
-//  display in screen qr code scan after 9:30 you're late and show the difference time. late hours or minutes should reduce from permission hours and the remaining permission hours to be displayed.
+//  display in screen qr code scan after 9:30 you're late and show the difference time. late hours or minutes should reduce from permission hours and the remaining permission hours to be displayed
+//  similarly if leaving before 6:30 should get permission for office purpose or early time will reduce from permission time.
+//  leaving early before 6:30 and coming after 9:30 for personal things should get request and the same will reduced in permission time.
+//  After permission Time completes late or leaving early will be considered as half day leave
 //  suppose direct visit should get approval from request and it should marked as present. similary early away from close time should get permission.
-  Future _in()async{
-    try {
-    int _graceHours, _graceMinutes;
+  //______________________________________________________________________**********************************************************************
+ //  permissionTime=4 Hours per Month,
+ // start Office Time=9:30,
+ // close office  TIme =18,
+ // Due to personal before or after office time scanning QR will be reduced from permission Time.
+ // Completion of permission time will be taken as half day and more than 4 times half day will be considered as leave
+ // Due to Office work before or after office time should get request so that permission time will not reduce.
+
+  startDay(Duration permissionTime,officeTime,startTime){
+  Duration remainingPermissionTime;
+  if(startTime.isAfter(officeTime)){
+    remainingPermissionTime=startTime.difference(officeTime);
+    permissionTime -=remainingPermissionTime;
+  }
+  return permissionTime;
+}
+
+Future _in()async{
+  try {
+    int permissionHours,permissionMin;
     String cameraScanResult = await scanner.scan();
-    DateTime _checkInTime=DateTime.now();
-    DateTime _shiftStartTime=DateTime(_checkInTime.year,_checkInTime.month,_checkInTime.day,9,30);
-//you must pull their grace time here and set the hours and minutes, for testing purposes I am simply
-//setting the values to 4 hours and 0 minutes
-    _graceHours = 4;
-    _graceMinutes = 0;
-    Duration _graceTime=new Duration(hours: _graceHours, minutes: _graceMinutes); //this is a class of type duration this is being passed an hours value and a minutes value
-    _graceTime =_checkIn(_graceTime, _checkInTime, _shiftStartTime); //this line passes _graceTime, _checkInTime, and _shift start time to the method _checkIn(), which subtracts the difference in time only if the user is late, then returns the value _grace time
-    Duration _difference = _checkInTime.difference(_shiftStartTime);
-    int _differenceHours, _differenceMinutes;
-    _differenceHours = _difference.inHours;
-    _differenceMinutes = _difference.inMinutes.remainder(60);
-    String _earlyOrLate;
-    if (_shiftStartTime.isBefore(_checkInTime)) {
-      _earlyOrLate = "late";
-    } else {
-      _earlyOrLate = "early";
-      _differenceHours = _differenceHours.abs();
-      _differenceMinutes = _differenceMinutes.abs();}
-      _graceHours = _graceTime.inHours; //this line takes the hours value from the Durations and converts it to an int
-      _graceMinutes = _graceTime.inMinutes.remainder(60); //this line takes the minutes value from the Durations and converts it to an int
-    String _diffString = "You have checked in ${_differenceHours.toString()} hours and ${_differenceMinutes.toString()} minutes $_earlyOrLate. "
-        "Your remaining grace time is ${_graceHours.toString()} hours and ${_graceMinutes.toString()} minutes";
+    DateTime startTime=DateTime.now();
+    DateTime officeTime=DateTime(startTime.year,startTime.month,startTime.day,9,30);
+    permissionHours=4;
+    permissionMin=0;
+    Duration permissionTime= new Duration(hours: permissionHours,minutes: permissionMin);
+    permissionTime=startDay(permissionTime, officeTime, startTime);
+    Duration differenceTime= startTime.difference(officeTime);
+    int  differenceHours,differenceMin;
+    differenceHours=differenceTime.inHours;
+    differenceMin=differenceTime.inMinutes.remainder(60);
+    String earlyOrSame;
 
-//here you can take the remaining grace time and push to where the values are stored
-    String _minute=_checkInTime.minute.toString(); //these 4 lines ensure that the minutes value has 2 characters
+    if(
+    startTime.isBefore(officeTime)){
+      earlyOrSame="early & Thats Good";
+    }
+    else{
+      startTime.isAtSameMomentAs(officeTime);
+      earlyOrSame="late";
+      differenceHours=differenceHours.abs();
+      differenceMin=differenceMin.abs();}
+    permissionHours=permissionTime.inHours;
+    permissionMin=permissionTime.inMinutes.remainder(60);
+    String _diffString = "You\'re  ${differenceHours.toString()} hours and ${differenceMin.toString()} minutes $earlyOrSame."
+        "Your remaining Permission Time is ${permissionHours.toString()} hours and ${permissionMin.toString()} minutes";
+
+    String _minute=startTime.minute.toString(); //these 4 lines ensure that the minutes value has 2 characters
     if (_minute.length<2) {
-      _minute='0'+_minute;}
-
-
-      setState(() {
+      _minute='0'+_minute;
+    }
+    // String _diffString = "You\'re  ${differenceHours.toString()} hours and ${differenceMin.toString()} minutes";
+    setState(() {
       this.result = cameraScanResult; // setting string result with cameraScanResult
-      _messageText = '${_checkInTime.hour}:$_minute on ${_checkInTime.day}/${_checkInTime.month}/${_checkInTime.year}'; //this line gives you a string to output to the user
+      _messageText = '${startTime.hour}:$_minute on ${startTime.day}/${startTime.month}/${startTime.year}'; //this line gives you a string to output to the user
       _messageText += "\n $_diffString";
     });
 
   } on PlatformException catch (e) {
     print(e.message);
   }
-
-    Flushbar(
-      title: 'Your IN Time',
-      messageText: Text(
-        _messageText ,
-        style: TextStyle(
-            fontSize: 16.0,
-            color: Colors.green
-        ),
+  Flushbar(
+    title: 'Your IN Time',
+    messageText: Text(
+      _messageText ,
+      style: TextStyle(
+          fontSize: 16.0,
+          color: Colors.green
       ),
-      // title: 'Your IN Time',
-      // messageText:  Text("$FinalDate.$FinalTime", style: TextStyle(fontSize: 16.0, color: Colors.green),),
-      // icon: Icon(
-      //   Icons.done_outline,
-      //   size: 28,
-      //   color: Colors.green.shade300,
-      // ),
-      // leftBarIndicatorColor: Colors.blue.shade300,
-      // duration: Duration(seconds: 3),
-
-    )..show(context);
-  }
+    ),
+    duration: Duration(seconds: 3),
+  )..show(context);
+}
+  // closeDay(Duration permissionTime,officeTime,closeTime){
+  //   Duration remainingPermissionTime;
+  //   if(closeTime.isAfter(officeTime)){
+  //     remainingPermissionTime=closeTime.difference(officeTime);
+  //     permissionTime -=remainingPermissionTime;
+  //   }
+  //   return permissionTime;
+  // }
   Future _out()async{
     try {
+      int earlyHours,earlyMin;
+      String _diffString;
       String cameraScanResult = await scanner.scan();
-      // var date = new DateTime.now().toString();
-      // var dateParse = DateTime.parse(date);
-      // var formattedDate = "${dateParse.day}-${dateParse.month}-${dateParse.year}";
-      // var formattedTime = "${DateTime.now().hour} : ${DateTime.now().minute}";
+      DateTime closeTime=DateTime.now();
+      DateTime officeTime=DateTime(closeTime.year,closeTime.month,closeTime.day,18,30);
+
+      if(closeTime.isBefore(officeTime)){
+        Duration earlyTime=officeTime.difference(closeTime);
+        earlyHours=earlyTime.inHours;
+        earlyMin= earlyTime.inMinutes.remainder(60);
+        _diffString = "You\'re leaving ${earlyHours.toString()} hours and ${earlyMin.toString()} early";
+      }
+
+      String _minute=closeTime.minute.toString(); //these 4 lines ensure that the minutes value has 2 characters
+      if (_minute.length<2) {
+        _minute='0'+_minute;
+      }
       setState(() {
-        // FinalDate = formattedDate.toString() ;
-        // FinalTime = formattedTime.toString();
         this.result = cameraScanResult; // setting string result with cameraScanResult
+        _messageText = '${closeTime.hour}:$_minute on ${closeTime.day}/${closeTime.month}/${closeTime.year}'; //this line gives you a string to output to the user
+        _messageText += "\n $_diffString";
       });
     } on PlatformException catch (e) {
       print(e.message);
     }
     Flushbar(
-      // title: 'Your OUT Time',
-      // messageText:  Text("$FinalDate.$FinalTime", style: TextStyle(fontSize: 16.0, color: Colors.green),),
-      // icon: Icon(
-      //   Icons.done_outline,
-      //   size: 28,
-      //   color: Colors.green.shade300,
-      // ),
-      // leftBarIndicatorColor: Colors.blue.shade300,
-      // duration: Duration(seconds: 3),
+      title: 'Your OUT Time',
+      messageText:  Text(_messageText, style: TextStyle(fontSize: 16.0, color: Colors.green),),
+      duration: Duration(seconds: 3),
     )..show(context);
 
   }
@@ -225,41 +235,7 @@ class _AttendanceState extends State<Attendance> {
   _request(){setState(() => pressAttention = !pressAttention);
 
   }
-  _status(){}
+  _status(){
+  }
 
-// _checkIn(Duration _gracePeriod, _checkInTime,_shiftStartTime){
-//   Duration _difference;
-//   if(_checkInTime.isAfter(_shiftStartTime)){_difference=_checkInTime.difference(_shiftStartTime);_gracePeriod-=_difference;}
-//   return _gracePeriod;
-// }
 }
-
-// int _graveHours, _graceMinutes;
-// 1 _checkIn(Duration _gracePeriod) {
-//   DateTime _now = DateTime.now();
-//   DateTime _checkInTime = DateTime(_now.year, _now.month, _now.day, 9, 30);
-//   Duration _difference;
-//   if (_now.isAfter(_checkInTime)) {
-//     _difference = _now.difference(_checkInTime);
-//     _gracePeriod -= _difference;
-//   }
-//   return _gracePeriod;
-// }Duration _graceTime = new Duration(hours: 4);
-//           _graceTime = _checkIn(_graceTime);
-// 2 _checkIn(Duration _gracePeriod, _checkInTime, _startTime) {
-//   Duration _difference;
-//   if (_checkInTime.isAfter(_startTime)) {
-//     _difference = _checkInTime.difference(_startTime);
-//     _gracePeriod -= _difference;
-//   }
-//   return _gracePeriod;
-// }
-// 3 DateTime _checkInTime = DateTime.now();
-// DateTime _shiftStartTime = DateTime(_checkInTime.year, _checkInTime.month, _checkInTime.day, 9, 30);
-// Duration _graceTime = new Duration(hours: 4);
-// _graceTime = _checkIn(_graceTime, _checkInTime, _shiftStartTime);
-// String _minute = _checkInTime.minute.toString();
-// if (_minute.length < 2) {
-// _minute = '0' + _minute;
-// }
-// print('Checked in at: ${_checkInTime.hour}:${_checkInTime.minute} on ${_checkInTime.day}/${_checkInTime.month}/${_checkInTime.year}');
